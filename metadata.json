@@ -1,0 +1,6 @@
+{
+  "name": "Teenthenics",
+  "description": "Track calisthenics routines, push-ups, back levers, skill progressions, exercise level-ups, progressive overload, and PRs with an integrated timer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
