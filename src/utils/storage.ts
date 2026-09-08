@@ -17,7 +17,9 @@ export const DEFAULT_APP_DATA: AppData = {
     defaultRestSeconds: 90,
     soundEnabled: true,
     vibrateEnabled: true,
-    athleteName: 'Athlete',
+    athleteName: 'Calisthenics Beast',
+    username: 'calibeast',
+    avatarUrl: '',
     autoRestTimerEnabled: true,
   },
   coins: 100,
@@ -67,6 +69,9 @@ export function loadAppData(): AppData {
       coins: typeof parsed.coins === 'number' ? parsed.coins : 100,
       unlockedThemes: Array.isArray(parsed.unlockedThemes) ? parsed.unlockedThemes : ['orange_dark'],
       activeTheme: typeof parsed.activeTheme === 'string' ? parsed.activeTheme : 'orange_dark',
+      repRankHistory: Array.isArray(parsed.repRankHistory) ? parsed.repRankHistory : [],
+      plannedWorkouts: Array.isArray(parsed.plannedWorkouts) ? parsed.plannedWorkouts : [],
+      workoutMemories: Array.isArray(parsed.workoutMemories) ? parsed.workoutMemories : [],
     };
 
     return updatedData;
@@ -118,6 +123,9 @@ export function importAppDataFromJson(jsonString: string): AppData {
     coins: typeof parsed.coins === 'number' ? parsed.coins : 100,
     unlockedThemes: Array.isArray(parsed.unlockedThemes) ? parsed.unlockedThemes : ['orange_dark'],
     activeTheme: typeof parsed.activeTheme === 'string' ? parsed.activeTheme : 'orange_dark',
+    repRankHistory: Array.isArray(parsed.repRankHistory) ? parsed.repRankHistory : [],
+    plannedWorkouts: Array.isArray(parsed.plannedWorkouts) ? parsed.plannedWorkouts : [],
+    workoutMemories: Array.isArray(parsed.workoutMemories) ? parsed.workoutMemories : [],
   };
 
   saveAppData(validData);

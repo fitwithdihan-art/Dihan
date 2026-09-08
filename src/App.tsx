@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppData, Exercise, PersonalRecord, Routine, UserPreferences, WorkoutSession } from './types';
+import { AppData, Exercise, PersonalRecord, Routine, UserPreferences, WorkoutSession, FriendProfile, RepRankTestResult } from './types';
 import {
   loadAppData,
   saveAppData,
@@ -14,12 +14,20 @@ import { RoutinesView } from './components/RoutinesView';
 import { ProgressionsView } from './components/ProgressionsView';
 import { HistoryView } from './components/HistoryView';
 import { PRsAndStatsView } from './components/PRsAndStatsView';
+import { CalendarPlannerView } from './components/CalendarPlannerView';
+import { RanksView } from './components/RanksView';
+import { RepRankCalculatorView } from './components/RepRankCalculatorView';
 import { WorkoutActive } from './components/WorkoutActive';
 import { RoutineEditorModal } from './components/RoutineEditorModal';
 import { THEMES } from './utils/theme';
 import { ThemeShopModal } from './components/ThemeShopModal';
+import { FriendsView } from './components/FriendsView';
+import { InviteFriendsModal } from './components/InviteFriendsModal';
+import { useAuth } from './utils/authContext';
+import { Sparkles, Gift, UserPlus, X } from 'lucide-react';
 
 export default function App() {
+  const { user, saveToCloud, loadFromCloud } = useAuth();
   const [appData, setAppData] = useState<AppData>(() => {
     const loaded = loadAppData();
     setCustomExercises(loaded.customExercises || []);
@@ -27,11 +35,57 @@ export default function App() {
   });
   const [activeTab, setActiveTab] = useState<ActiveTab>('routines');
   const [isThemeShopOpen, setIsThemeShopOpen] = useState<boolean>(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
+  const [incomingInvite, setIncomingInvite] = useState<{
+    code: string;
+    refUsername?: string;
+  } | null>(null);
+  const [inviteAcceptedNotification, setInviteAcceptedNotification] = useState<string | null>(null);
+
+  // Check URL parameters on mount for friend invitation links
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const inviteParam = params.get('invite');
+        const refParam = params.get('ref') || params.get('inviter');
+        if (inviteParam || refParam) {
+          setIncomingInvite({
+            code: inviteParam || 'CALI-8842',
+            refUsername: refParam || undefined,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Error reading invite params:', err);
+    }
+  }, []);
 
   // Keep global custom exercises list synchronized
   useEffect(() => {
     setCustomExercises(appData.customExercises || []);
   }, [appData.customExercises]);
+
+  // Load data from cloud when user logs in, or push local data to cloud if new
+  useEffect(() => {
+    let active = true;
+    async function syncAuthData() {
+      if (!user) return;
+      const cloudData = await loadFromCloud();
+      if (!active) return;
+      if (cloudData) {
+        setAppData(cloudData);
+        saveAppData(cloudData);
+      } else {
+        // No cloud data yet - initialize cloud database with existing local data
+        await saveToCloud(appData);
+      }
+    }
+    syncAuthData();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   // Active workout state
   const [activeWorkout, setActiveWorkout] = useState<{
@@ -42,11 +96,14 @@ export default function App() {
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [isRoutineEditorOpen, setIsRoutineEditorOpen] = useState<boolean>(false);
 
-  // Sync to local storage on changes
+  // Sync to local storage and cloud on changes
   const updateAppData = (updater: (prev: AppData) => AppData) => {
     setAppData((prev) => {
       const next = updater(prev);
       saveAppData(next);
+      if (user) {
+        saveToCloud(next);
+      }
       return next;
     });
   };
@@ -158,6 +215,21 @@ export default function App() {
     }));
   };
 
+  // Rep Rank Test History Management
+  const handleSaveRepRankTest = (test: RepRankTestResult) => {
+    updateAppData((prev) => ({
+      ...prev,
+      repRankHistory: [test, ...(prev.repRankHistory || [])],
+    }));
+  };
+
+  const handleDeleteRepRankTest = (testId: string) => {
+    updateAppData((prev) => ({
+      ...prev,
+      repRankHistory: (prev.repRankHistory || []).filter((t) => t.id !== testId),
+    }));
+  };
+
   // Session Delete & Update
   const handleDeleteSession = (sessionId: string) => {
     updateAppData((prev) => ({
@@ -216,6 +288,58 @@ export default function App() {
     saveAppData(DEFAULT_APP_DATA);
     setAppData(DEFAULT_APP_DATA);
     setCustomExercises([]);
+  };
+
+  // Incoming Friend Invite Handlers
+  const handleAcceptIncomingInvite = () => {
+    if (!incomingInvite) return;
+    const inviterName = incomingInvite.refUsername || 'Gym Bro';
+    const inviterHandle = (incomingInvite.refUsername || 'athlete').toLowerCase().replace(/\s+/g, '_');
+
+    const newFriend: FriendProfile = {
+      id: `invited_${Date.now()}`,
+      userId: incomingInvite.code,
+      username: inviterHandle,
+      athleteName: inviterName,
+      avatarUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150&auto=format&fit=crop&q=60',
+      level: 4,
+      totalWorkouts: 18,
+      streak: 3,
+      status: 'online',
+      bestPr: '15 Clean Muscle-ups',
+    };
+
+    updateAppData((prev) => {
+      const existing = prev.localFriends || [];
+      const alreadyFriends = existing.some(
+        (f) => f.username.toLowerCase() === inviterHandle.toLowerCase() || f.userId === incomingInvite.code
+      );
+      const updatedFriends = alreadyFriends ? existing : [newFriend, ...existing];
+      return {
+        ...prev,
+        localFriends: updatedFriends,
+        coins: (prev.coins || 0) + 50, // +50 Welcome coins bonus!
+      };
+    });
+
+    // Clean URL without reloading
+    if (typeof window !== 'undefined') {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
+    setIncomingInvite(null);
+    setInviteAcceptedNotification(`You connected with @${inviterHandle} and earned +50 Welcome Coins! 🪙`);
+    setActiveTab('friends');
+    setTimeout(() => setInviteAcceptedNotification(null), 4000);
+  };
+
+  const handleDismissIncomingInvite = () => {
+    if (typeof window !== 'undefined') {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+    setIncomingInvite(null);
   };
 
   // If in active workout mode, display full active workout interface
@@ -329,10 +453,68 @@ export default function App() {
         activeWorkoutTitle={activeWorkout?.routine?.title}
         coins={appData.coins || 0}
         onOpenShop={() => setIsThemeShopOpen(true)}
+        athleteName={appData.userPreferences.athleteName || 'Calisthenics Beast'}
+        username={appData.userPreferences.username || 'calibeast'}
+        avatarUrl={appData.userPreferences.avatarUrl || ''}
+        bio={appData.userPreferences.bio || ''}
+        bestRank={appData.userPreferences.bestRank}
+        bestRankTier={appData.userPreferences.bestRankTier}
+        appData={appData}
+        onUpdateProfile={(name, username, avatarUrl, bio, bestRank, bestRankTier) =>
+          handleUpdatePreferences({
+            athleteName: name,
+            username,
+            avatarUrl,
+            ...(bio !== undefined ? { bio } : {}),
+            ...(bestRank !== undefined ? { bestRank } : {}),
+            ...(bestRankTier !== undefined ? { bestRankTier } : {}),
+          })
+        }
+        friendsCount={appData.localFriends ? appData.localFriends.length : 2}
+        onOpenInvite={() => setIsInviteModalOpen(true)}
       />
 
+      {/* Incoming Friend Invite Banner */}
+      {incomingInvite && (
+        <div className="bg-gradient-to-r from-orange-500/20 via-amber-500/20 to-orange-500/20 border-b border-orange-500/40 px-4 py-3 text-center animate-fade-in relative z-30">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-2.5 text-zinc-100 font-mono">
+              <Gift className="w-5 h-5 text-orange-400 shrink-0 animate-bounce" />
+              <span>
+                <strong>@{incomingInvite.refUsername || incomingInvite.code}</strong> invited you to join their squad! Claim <strong>+50 Welcome Coins</strong> 🪙
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleAcceptIncomingInvite}
+                className="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-zinc-950 rounded-xl font-mono font-black text-xs transition active:scale-95 shadow-md shadow-orange-500/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Accept & Add Friend</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissIncomingInvite}
+                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification when accepted */}
+      {inviteAcceptedNotification && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-zinc-900 border border-orange-500/60 text-white text-xs sm:text-sm px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 animate-bounce">
+          <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
+          <span>{inviteAcceptedNotification}</span>
+        </div>
+      )}
+
       {/* Main App Content View Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-6 pb-24 md:py-8">
         {activeTab === 'routines' && (
           <RoutinesView
             routines={appData.routines}
@@ -351,6 +533,29 @@ export default function App() {
           <ProgressionsView
             progressions={appData.progressions}
             onUpdateLevel={handleUpdateProgressionLevel}
+          />
+        )}
+
+        {activeTab === 'calendar' && (
+          <CalendarPlannerView
+            appData={appData}
+            onUpdateAppData={setAppData}
+            onStartRoutine={handleStartRoutine}
+            onStartFreeWorkout={handleStartFreeWorkout}
+            onShowToast={(msg) => setInviteAcceptedNotification(msg)}
+          />
+        )}
+
+        {activeTab === 'ranks' && (
+          <RanksView
+            customExercises={appData.customExercises}
+            prs={appData.prs}
+            sessions={appData.sessions}
+            onNavigateToCalculator={(exId, reps) => {
+              setActiveTab('calculator');
+            }}
+            onStartRoutine={handleStartRoutine}
+            onShowToast={(msg) => setInviteAcceptedNotification(msg)}
           />
         )}
 
@@ -375,6 +580,38 @@ export default function App() {
             onExportData={handleExportData}
             onImportData={handleImportData}
             onResetData={handleResetData}
+            onNavigateToCalculator={() => setActiveTab('calculator')}
+          />
+        )}
+
+        {activeTab === 'calculator' && (
+          <RepRankCalculatorView
+            customExercises={appData.customExercises}
+            userPreferences={appData.userPreferences}
+            repRankHistory={appData.repRankHistory}
+            onAddCustomExercise={handleSaveCustomExercise}
+            onUpdatePreferences={handleUpdatePreferences}
+            onAddPR={handleAddPR}
+            onSaveHistoryTest={handleSaveRepRankTest}
+            onDeleteHistoryTest={handleDeleteRepRankTest}
+          />
+        )}
+
+        {activeTab === 'friends' && (
+          <FriendsView
+            userPreferences={appData.userPreferences}
+            appData={appData}
+            onUpdatePreferences={handleUpdatePreferences}
+            onUpdateFriends={(friendsList) => {
+              updateAppData((prev) => ({
+                ...prev,
+                localFriends: friendsList,
+              }));
+            }}
+            onStartRoutineWithFriend={() => {
+              setActiveTab('routines');
+            }}
+            onOpenInvite={() => setIsInviteModalOpen(true)}
           />
         )}
       </main>
@@ -401,6 +638,19 @@ export default function App() {
         activeTheme={appData.activeTheme || 'orange_dark'}
         onBuyTheme={handleBuyTheme}
         onEquipTheme={handleEquipTheme}
+      />
+
+      {/* Invite Friends Modal */}
+      <InviteFriendsModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        userPreferences={appData.userPreferences}
+        friendCode={user ? user.uid.slice(0, 8).toUpperCase() : 'CALI-8842'}
+        totalFriendsCount={appData.localFriends ? appData.localFriends.length : 2}
+        onInviteSuccess={() => {
+          setInviteAcceptedNotification('Squad invite link copied! Share it with your friends.');
+          setTimeout(() => setInviteAcceptedNotification(null), 3000);
+        }}
       />
     </div>
   );

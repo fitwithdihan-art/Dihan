@@ -28,6 +28,7 @@ import { EXERCISES, findExercise } from '../data/exercises';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseLibraryModal } from './ExerciseLibraryModal';
 import { LevelUpModal } from './LevelUpModal';
+import { GymBeastVisualizer } from './GymBeastVisualizer';
 import { playPrFanfare } from '../utils/sound';
 import { computeExerciseMastery, calculateExerciseSessionXp, evaluateSessionLevelUps, getLevelInfo } from '../utils/mastery';
 
@@ -625,6 +626,11 @@ export const WorkoutActive: React.FC<WorkoutActiveProps> = ({
                     <span className="px-1.5 py-0.5 text-[10px] font-medium rounded uppercase bg-zinc-800 text-zinc-400">
                       {exDef?.category}
                     </span>
+                    {exDef?.primaryMuscles && exDef.primaryMuscles.length > 0 && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-orange-500/10 text-orange-400/90 border border-orange-500/20 capitalize">
+                        {exDef.primaryMuscles.join(', ')}
+                      </span>
+                    )}
 
                     {/* Movement Level Badge */}
                     <div
@@ -649,7 +655,7 @@ export const WorkoutActive: React.FC<WorkoutActiveProps> = ({
                       <div className="w-24 sm:w-32 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-300"
-                          style={{ width: `${liveLevelInfo.progressPercent}%` }}
+                          style={{ width: `${Number.isFinite(liveLevelInfo.progressPercent) ? liveLevelInfo.progressPercent : 0}%` }}
                         />
                       </div>
                       <span className="text-zinc-300">
@@ -718,6 +724,15 @@ export const WorkoutActive: React.FC<WorkoutActiveProps> = ({
                 </div>
               )}
 
+              {/* Muscle Target Character Visualizer */}
+              <div className="px-4 pt-3 pb-1">
+                <GymBeastVisualizer
+                  primaryMuscles={exDef?.primaryMuscles || []}
+                  secondaryMuscles={exDef?.secondaryMuscles || []}
+                  compact={true}
+                />
+              </div>
+
               {/* Sets Table */}
               <div className="p-3 sm:p-4">
                 {/* Table Header */}
@@ -777,7 +792,7 @@ export const WorkoutActive: React.FC<WorkoutActiveProps> = ({
                               max="250"
                               step="0.5"
                               placeholder="0"
-                              value={set.weightKg === 0 ? '' : set.weightKg}
+                              value={!set.weightKg || set.weightKg === 0 || !Number.isFinite(set.weightKg) ? '' : set.weightKg}
                               onChange={(e) =>
                                 handleUpdateSet(exIndex, setIndex, {
                                   weightKg: parseFloat(e.target.value) || 0,
@@ -794,7 +809,7 @@ export const WorkoutActive: React.FC<WorkoutActiveProps> = ({
                               type="button"
                               onClick={() =>
                                 handleUpdateSet(exIndex, setIndex, {
-                                  completedRepsOrSecs: Math.max(0, set.completedRepsOrSecs - (isHold ? 5 : 1)),
+                                  completedRepsOrSecs: Math.max(0, (Number(set.completedRepsOrSecs) || 0) - (isHold ? 5 : 1)),
                                 })
                               }
                               className="w-7 h-7 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs text-zinc-300 transition"
@@ -806,7 +821,7 @@ export const WorkoutActive: React.FC<WorkoutActiveProps> = ({
                               type="number"
                               min="0"
                               max="999"
-                              value={set.completedRepsOrSecs}
+                              value={Number.isFinite(set.completedRepsOrSecs) ? set.completedRepsOrSecs : 0}
                               onChange={(e) =>
                                 handleUpdateSet(exIndex, setIndex, {
                                   completedRepsOrSecs: Math.max(0, parseInt(e.target.value) || 0),

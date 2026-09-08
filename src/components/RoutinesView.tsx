@@ -13,9 +13,14 @@ import {
   Calendar,
   Layers,
   FileText,
+  Eye,
+  X,
+  Target,
+  Trophy,
 } from 'lucide-react';
 import { Exercise, Routine } from '../types';
 import { findExercise } from '../data/exercises';
+import { GymBeastVisualizer } from './GymBeastVisualizer';
 
 interface RoutinesViewProps {
   routines: Routine[];
@@ -35,6 +40,7 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
   customExercises = [],
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [previewingRoutine, setPreviewingRoutine] = useState<Routine | null>(null);
 
   const customCount = routines.filter((r) => r.isCustom).length;
 
@@ -53,6 +59,30 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
       items: routine.items.map((it) => ({ ...it })),
     };
     onOpenRoutineEditor(cloned);
+  };
+
+  // Helper to extract unique target muscles for the whole routine split
+  const getRoutineMuscleGroups = (routine: Routine) => {
+    const primary: string[] = [];
+    const secondary: string[] = [];
+
+    routine.items.forEach((item) => {
+      const ex = findExercise(item.exerciseId, customExercises);
+      if (ex) {
+        ex.primaryMuscles.forEach((m) => {
+          if (!primary.includes(m)) primary.push(m);
+        });
+        if (ex.secondaryMuscles) {
+          ex.secondaryMuscles.forEach((m) => {
+            if (!secondary.includes(m) && !primary.includes(m)) {
+              secondary.push(m);
+            }
+          });
+        }
+      }
+    });
+
+    return { primary, secondary };
   };
 
   return (
@@ -301,10 +331,20 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    id={`view-routine-btn-${routine.id}`}
+                    onClick={() => setPreviewingRoutine(routine)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-750 text-zinc-300 hover:text-white font-bold text-xs rounded-xl transition"
+                    title="Preview Workout Plan"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Plan</span>
+                  </button>
+
                   {routine.isCustom && (
                     <button
                       onClick={() => onOpenRoutineEditor(routine)}
-                      className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs rounded-xl transition"
+                      className="px-3 py-2 bg-zinc-850 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs rounded-xl transition"
                     >
                       Edit
                     </button>
@@ -323,6 +363,153 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
           );
         })}
       </div>
+
+      {/* Immersive Workout Plan Preview Modal */}
+      {previewingRoutine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-850 rounded-3xl shadow-2xl my-8">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-zinc-900/95 backdrop-blur px-6 py-4.5 border-b border-zinc-800 flex items-center justify-between rounded-t-3xl z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                  <Flame className="w-5 h-5 fill-current" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white font-display uppercase tracking-tight">
+                    {previewingRoutine.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-mono text-zinc-400 uppercase">
+                      Estimated Time: <span className="text-orange-400 font-bold">~{previewingRoutine.estimatedMinutes} Mins</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-500">•</span>
+                    <span className="text-[10px] font-mono text-zinc-400 uppercase">
+                      Difficulty: <span className="text-orange-400 font-bold">{previewingRoutine.difficulty}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewingRoutine(null)}
+                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Plan Description */}
+              <div className="p-4 bg-zinc-950/40 rounded-2xl border border-zinc-850 space-y-1.5">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-500 block">
+                  Program Overview
+                </span>
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  {previewingRoutine.description}
+                </p>
+              </div>
+
+              {/* Routine Muscular Impact Map */}
+              {(() => {
+                const { primary, secondary } = getRoutineMuscleGroups(previewingRoutine);
+                return (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-400 block px-1">
+                      Routine Muscular Impact Map
+                    </span>
+                    <GymBeastVisualizer
+                      primaryMuscles={primary}
+                      secondaryMuscles={secondary}
+                      exerciseName={previewingRoutine.title}
+                    />
+                  </div>
+                );
+              })()}
+
+              {/* Exercises List Details */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-400">
+                    Training Circuit ({previewingRoutine.items.length} Movements)
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-500">Target Reps & Sets</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {previewingRoutine.items.map((item, idx) => {
+                    const ex = findExercise(item.exerciseId, customExercises);
+                    const isHold = ex?.type === 'hold_seconds';
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-4 bg-zinc-950/50 border border-zinc-850/65 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-zinc-800 transition"
+                      >
+                        <div className="flex items-start gap-3 flex-1">
+                          <span className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] font-mono text-zinc-400 shrink-0 font-bold mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <div className="space-y-1">
+                            <h4 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wide">
+                              {ex?.name || item.exerciseId}
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 text-[9px] font-mono">
+                                {ex?.category || 'Skills'}
+                              </span>
+                              <span className="px-1.5 py-0.2 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] font-mono font-bold">
+                                {ex?.type === 'hold_seconds' ? 'Static Hold' : 'Dynamic Reps'}
+                              </span>
+                            </div>
+                            {item.notes && (
+                              <p className="text-[10px] text-zinc-400 font-mono italic">
+                                Note: {item.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4.5 shrink-0 self-end sm:self-auto">
+                          <div className="text-right leading-none">
+                            <span className="text-xs sm:text-sm font-black text-orange-400 font-mono">
+                              {item.defaultSets} Sets × {item.defaultTargetRepsOrSecs}
+                              {isHold ? 's' : ''}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 block mt-1 font-mono">
+                              {item.defaultRestSeconds}s rest timer
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-6 py-4 border-t border-zinc-800/80 flex items-center justify-end gap-3.5">
+              <button
+                onClick={() => setPreviewingRoutine(null)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-750 text-zinc-300 hover:text-white font-bold text-xs rounded-xl transition"
+              >
+                Close Preview
+              </button>
+              <button
+                id="modal-preview-start-workout-btn"
+                onClick={() => {
+                  onStartRoutine(previewingRoutine);
+                  setPreviewingRoutine(null);
+                }}
+                className="flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-zinc-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95 duration-100"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Start Workout Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

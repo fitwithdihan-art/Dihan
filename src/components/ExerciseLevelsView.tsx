@@ -37,10 +37,10 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
 
   // Aggregate athlete stats
   const athleteStats = useMemo(() => {
-    const totalLevel = masteries.reduce((sum, m) => sum + m.level, 0);
-    const totalXp = masteries.reduce((sum, m) => sum + m.totalXp, 0);
-    const totalOverloads = masteries.reduce((sum, m) => sum + m.progressiveOverloadsTriggered, 0);
-    const leveledUpCount = masteries.filter((m) => m.level > 1).length;
+    const totalLevel = masteries.reduce((sum, m) => sum + (m.level || 1), 0);
+    const totalXp = masteries.reduce((sum, m) => sum + (m.totalXp || 0), 0);
+    const totalOverloads = masteries.reduce((sum, m) => sum + (m.overloadCount || 0), 0);
+    const leveledUpCount = masteries.filter((m) => (m.level || 1) > 1).length;
 
     return {
       totalLevel,
@@ -79,9 +79,11 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
           return b.totalXp - a.totalXp;
         }
         if (sortBy === 'overloads') {
-          return b.progressiveOverloadsTriggered - a.progressiveOverloadsTriggered;
+          return (b.overloadCount || 0) - (a.overloadCount || 0);
         }
-        return a.exerciseName.localeCompare(b.exerciseName);
+        const exA = EXERCISES.find((e) => e.id === a.exerciseId)?.name || a.exerciseId;
+        const exB = EXERCISES.find((e) => e.id === b.exerciseId)?.name || b.exerciseId;
+        return exA.localeCompare(exB);
       });
   }, [masteries, searchQuery, selectedCategory, sortBy]);
 
@@ -265,7 +267,7 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-white font-display">{m.exerciseName}</h3>
+                      <h3 className="text-base font-bold text-white font-display">{exDef?.name || m.exerciseId}</h3>
                       {isHold && (
                         <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                           Hold
@@ -300,14 +302,14 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
                   <div className="flex items-center justify-between text-xs font-mono">
                     <span className="text-zinc-400">Level {m.level} Progress</span>
                     <span className="text-orange-400 font-semibold">
-                      {m.currentLevelXp} / {m.xpNeededForLevel} XP ({m.progressPercent}%)
+                      {m.currentLevelXp} / {m.xpNeededForLevel} XP ({Number.isFinite(m.progressPercent) ? m.progressPercent : 0}%)
                     </span>
                   </div>
 
                   <div className="w-full h-2 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800/80">
                     <div
                       className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-500"
-                      style={{ width: `${m.progressPercent}%` }}
+                      style={{ width: `${Number.isFinite(m.progressPercent) ? m.progressPercent : 0}%` }}
                     />
                   </div>
                 </div>
@@ -317,9 +319,9 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
                   <div>
                     <span className="text-[10px] text-zinc-500 block uppercase">Peak Set</span>
                     <span className="font-bold text-white text-sm">
-                      {m.bestRepsOrSeconds > 0 ? (
+                      {(m.bestSetRepsOrSecs || 0) > 0 ? (
                         <>
-                          {m.bestRepsOrSeconds}
+                          {m.bestSetRepsOrSecs}
                           <span className="text-xs font-normal text-zinc-400">{isHold ? 's' : 'r'}</span>
                         </>
                       ) : (
@@ -330,16 +332,14 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
 
                   <div className="border-x border-zinc-800">
                     <span className="text-[10px] text-zinc-500 block uppercase">Strict Sets</span>
-                    <span className="font-bold text-orange-400 text-sm">{m.lifetimeSetsCompleted}</span>
+                    <span className="font-bold text-orange-400 text-sm">{m.totalLifetimeSets || 0}</span>
                   </div>
 
                   <div>
                     <span className="text-[10px] text-zinc-500 block uppercase">Total Vol</span>
                     <span className="font-bold text-emerald-400 text-sm">
-                      {m.lifetimeVolumeReps > 0
-                        ? `${m.lifetimeVolumeReps}r`
-                        : m.lifetimeHoldSeconds > 0
-                        ? `${m.lifetimeHoldSeconds}s`
+                      {(m.totalLifetimeRepsOrSecs || 0) > 0
+                        ? `${m.totalLifetimeRepsOrSecs}${isHold ? 's' : 'r'}`
                         : '—'}
                     </span>
                   </div>
@@ -350,7 +350,7 @@ export const ExerciseLevelsView: React.FC<ExerciseLevelsViewProps> = ({ sessions
               <div className="px-4 sm:px-5 py-2.5 bg-zinc-950/50 border-t border-zinc-800/60 flex items-center justify-between text-[11px] font-mono">
                 <div className="flex items-center gap-1.5 text-zinc-400">
                   <Flame className="w-3.5 h-3.5 text-orange-400" />
-                  <span>{m.progressiveOverloadsTriggered} Progressive Overloads</span>
+                  <span>{m.overloadCount || 0} Progressive Overloads</span>
                 </div>
 
                 <button

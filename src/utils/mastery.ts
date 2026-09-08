@@ -37,11 +37,11 @@ export function getLevelInfo(totalXp: number): {
   rankTitle: string;
   badgeTier: 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'red_diamond' | 'cosmic_obsidian';
 } {
-  const safeXp = Math.max(0, Math.floor(totalXp));
+  const safeXp = Number.isFinite(totalXp) ? Math.max(0, Math.floor(totalXp)) : 0;
 
   // Determine level
   let level = 1;
-  while (true) {
+  while (level < 100) {
     const nextThreshold = getThresholdForLevel(level + 1);
     if (safeXp >= nextThreshold) {
       level += 1;
@@ -52,9 +52,9 @@ export function getLevelInfo(totalXp: number): {
 
   const currentLevelBase = getThresholdForLevel(level);
   const nextLevelThreshold = getThresholdForLevel(level + 1);
-  const xpNeededForLevel = nextLevelThreshold - currentLevelBase;
-  const currentLevelXp = safeXp - currentLevelBase;
-  const progressPercent = Math.min(100, Math.max(0, Math.round((currentLevelXp / xpNeededForLevel) * 100)));
+  const xpNeededForLevel = Math.max(1, nextLevelThreshold - currentLevelBase);
+  const currentLevelXp = Math.max(0, safeXp - currentLevelBase);
+  const progressPercent = Math.min(100, Math.max(0, Math.round((currentLevelXp / xpNeededForLevel) * 100) || 0));
 
   const rankTitle = RANK_TITLES[Math.min(10, level)] || `Grandmaster ${level - 10}`;
 

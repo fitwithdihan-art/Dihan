@@ -61,7 +61,7 @@ export const MonthlyProgressChart: React.FC<MonthlyProgressChartProps> = ({ sess
         durationMins,
         sessions: daySessions.map(s => ({
           title: s.routineTitle,
-          duration: Math.round(s.durationSeconds / 60)
+          duration: Math.round((s.durationSeconds || 0) / 60)
         }))
       });
     }
@@ -106,15 +106,17 @@ export const MonthlyProgressChart: React.FC<MonthlyProgressChartProps> = ({ sess
 
   // Helper to get bar height percent
   const getBarHeight = (dayData: any) => {
-    if (monthlyData.peakValue === 0) return '4%';
+    if (!monthlyData.peakValue || monthlyData.peakValue <= 0) return '4%';
     const val = metric === 'workouts' 
-      ? dayData.workoutsCount 
+      ? (dayData.workoutsCount || 0) 
       : metric === 'volume' 
-        ? dayData.repsCount 
-        : dayData.durationMins;
+        ? (dayData.repsCount || 0) 
+        : (dayData.durationMins || 0);
     
-    if (val === 0) return '4%'; // Minimum height to show the day baseline
-    return `${Math.min(100, Math.max(12, (val / monthlyData.peakValue) * 100))}%`;
+    if (val <= 0) return '4%'; // Minimum height to show the day baseline
+    const ratio = (val / monthlyData.peakValue) * 100;
+    const safePercent = Number.isFinite(ratio) ? Math.min(100, Math.max(12, Math.round(ratio))) : 4;
+    return `${safePercent}%`;
   };
 
   return (

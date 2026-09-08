@@ -313,7 +313,7 @@ const EditSessionModalContent: React.FC<{
                           <input
                             type="number"
                             step="0.5"
-                            value={set.weightKg === 0 ? '' : set.weightKg}
+                            value={!set.weightKg || set.weightKg === 0 || !Number.isFinite(set.weightKg) ? '' : set.weightKg}
                             placeholder="0"
                             onChange={(e) =>
                               handleUpdateSet(exIdx, setIdx, {
@@ -330,7 +330,7 @@ const EditSessionModalContent: React.FC<{
                             type="button"
                             onClick={() =>
                               handleUpdateSet(exIdx, setIdx, {
-                                completedRepsOrSecs: Math.max(0, set.completedRepsOrSecs - (isHold ? 5 : 1)),
+                                completedRepsOrSecs: Math.max(0, (Number(set.completedRepsOrSecs) || 0) - (isHold ? 5 : 1)),
                               })
                             }
                             className="w-6 h-6 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded text-xs text-zinc-300 font-bold"
@@ -341,7 +341,7 @@ const EditSessionModalContent: React.FC<{
                             type="number"
                             min="0"
                             max="999"
-                            value={set.completedRepsOrSecs}
+                            value={Number.isFinite(set.completedRepsOrSecs) ? set.completedRepsOrSecs : 0}
                             onChange={(e) =>
                               handleUpdateSet(exIdx, setIdx, {
                                 completedRepsOrSecs: Math.max(0, parseInt(e.target.value) || 0),

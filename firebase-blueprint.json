@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user profile and synchronization state",
+      "type": "object",
+      "properties": {
+        "appData": {
+          "type": "object",
+          "description": "Encapsulated user app data including routines, workouts, PRs, and themes"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Epoch timestamp of last update"
+        }
+      },
+      "required": ["appData", "updatedAt"]
+    },
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Public athlete profile used for friend search, friend lists, and leaderboards",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the athlete"
+        },
+        "username": {
+          "type": "string",
+          "description": "Unique athlete username handle"
+        },
+        "athleteName": {
+          "type": "string",
+          "description": "Display name of the athlete"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "Avatar image URL or data URI"
+        },
+        "level": {
+          "type": "number",
+          "description": "Overall athlete mastery level"
+        },
+        "totalWorkouts": {
+          "type": "number",
+          "description": "Lifetime completed workout sessions"
+        },
+        "streak": {
+          "type": "number",
+          "description": "Current workout day streak"
+        },
+        "favoriteExercise": {
+          "type": "string",
+          "description": "Favorite calisthenics skill or exercise"
+        },
+        "bio": {
+          "type": "string",
+          "description": "Athlete personal bio and goals description"
+        },
+        "bestRank": {
+          "type": "string",
+          "description": "Athlete best earned rank title showcased on profile"
+        },
+        "bestRankTier": {
+          "type": "string",
+          "description": "Tier badge for best rank: copper, bronze, silver, gold, platinum, diamond, red_diamond, cosmic_obsidian"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Epoch timestamp of last profile sync"
+        }
+      },
+      "required": ["userId", "username", "athleteName", "updatedAt"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request sent from one athlete to another",
+      "type": "object",
+      "properties": {
+        "fromUserId": {
+          "type": "string",
+          "description": "User ID of sender"
+        },
+        "fromUsername": {
+          "type": "string",
+          "description": "Username of sender"
+        },
+        "fromAthleteName": {
+          "type": "string",
+          "description": "Display name of sender"
+        },
+        "fromAvatarUrl": {
+          "type": "string",
+          "description": "Avatar of sender"
+        },
+        "toUserId": {
+          "type": "string",
+          "description": "User ID of receiver"
+        },
+        "toUsername": {
+          "type": "string",
+          "description": "Username of recipient"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted", "declined"],
+          "description": "Current state of the friend request"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp request was initiated"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of last status update"
+        }
+      },
+      "required": ["fromUserId", "toUserId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores private user workout and account data"
+    },
+    "/public_profiles/{userId}": {
+      "schema": "PublicProfile",
+      "description": "Public athlete directory for discovering, finding, and inspecting friends"
+    },
+    "/friend_requests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Friend requests exchange between athletes"
+    }
+  }
+}

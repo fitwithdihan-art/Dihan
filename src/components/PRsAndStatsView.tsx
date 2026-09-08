@@ -18,11 +18,16 @@ import {
   Zap,
   Settings,
   Timer,
+  LogOut,
+  Cloud,
+  ShieldCheck,
+  Calculator,
 } from 'lucide-react';
 import { PersonalRecord, UserPreferences, WorkoutSession } from '../types';
 import { EXERCISES } from '../data/exercises';
 import { ExerciseLevelsView } from './ExerciseLevelsView';
 import { MonthlyProgressChart } from './MonthlyProgressChart';
+import { useAuth } from '../utils/authContext';
 
 interface PRsAndStatsViewProps {
   prs: PersonalRecord[];
@@ -34,6 +39,7 @@ interface PRsAndStatsViewProps {
   onExportData: () => void;
   onImportData: (fileContent: string) => void;
   onResetData: () => void;
+  onNavigateToCalculator?: () => void;
 }
 
 export const PRsAndStatsView: React.FC<PRsAndStatsViewProps> = ({
@@ -46,7 +52,9 @@ export const PRsAndStatsView: React.FC<PRsAndStatsViewProps> = ({
   onExportData,
   onImportData,
   onResetData,
+  onNavigateToCalculator,
 }) => {
+  const { user, signInWithGoogle, signInWithFacebook, logOut, error, clearError } = useAuth();
   const [isAddPROpen, setIsAddPROpen] = useState<boolean>(false);
   const [subSection, setSubSection] = useState<'levels' | 'prs' | 'monthly' | 'settings'>('levels');
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>(EXERCISES[0].id);
@@ -65,7 +73,7 @@ export const PRsAndStatsView: React.FC<PRsAndStatsViewProps> = ({
       totalReps += s.totalVolumeReps || 0;
       totalHoldSecs += s.totalHoldSeconds || 0;
       totalSets += s.totalSetsCompleted || 0;
-      totalMinutes += Math.round(s.durationSeconds / 60);
+      totalMinutes += Math.round((s.durationSeconds || 0) / 60);
     });
 
     return {
@@ -227,14 +235,28 @@ export const PRsAndStatsView: React.FC<PRsAndStatsViewProps> = ({
           </p>
         </div>
 
-        <button
-          id="open-add-pr-modal-btn"
-          onClick={() => setIsAddPROpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-xs sm:text-sm font-bold text-zinc-950 shadow-md shadow-orange-500/10 transition self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Log New PR</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {onNavigateToCalculator && (
+            <button
+              type="button"
+              onClick={onNavigateToCalculator}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-orange-400 hover:text-orange-300 border border-orange-500/30 text-xs sm:text-sm font-bold font-mono transition shadow-sm cursor-pointer active:scale-95"
+              title="Calculate athletic rank from reps"
+            >
+              <Calculator className="w-4 h-4" />
+              <span>Rank Calculator</span>
+            </button>
+          )}
+
+          <button
+            id="open-add-pr-modal-btn"
+            onClick={() => setIsAddPROpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-xs sm:text-sm font-bold text-zinc-950 shadow-md shadow-orange-500/10 transition cursor-pointer active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Log New PR</span>
+          </button>
+        </div>
       </div>
 
       {/* Lifetime Stats Matrix */}
@@ -382,10 +404,131 @@ export const PRsAndStatsView: React.FC<PRsAndStatsViewProps> = ({
 
       {/* Preferences & Data Management */}
       {subSection === 'settings' && (
-        <div className="p-5 sm:p-6 bg-zinc-900/70 border border-zinc-800 rounded-3xl space-y-4">
-          <h3 className="text-sm font-bold text-white font-display uppercase tracking-wider font-mono">
-            Preferences & Data Sync
-          </h3>
+        <div className="space-y-6">
+          {/* Cloud Save & Account Authentication */}
+          <div className="p-5 sm:p-6 bg-zinc-900/70 border border-zinc-800 rounded-3xl space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-xl">
+                <Cloud className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white font-display uppercase tracking-wider font-mono">
+                  Cloud Save & Backup
+                </h3>
+                <p className="text-[11px] text-zinc-400">Secure your training data and access it from any device</p>
+              </div>
+            </div>
+
+            {/* Error Message Box */}
+            {error && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between gap-2">
+                <span className="text-xs text-rose-300 font-medium">{error}</span>
+                <button 
+                  onClick={clearError} 
+                  className="p-1 hover:bg-rose-500/15 rounded text-rose-400 hover:text-rose-300 transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {user ? (
+              /* Logged In View */
+              <div className="p-4 bg-zinc-950/50 border border-zinc-850 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  {user.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt={user.displayName || 'User'} 
+                      referrerPolicy="no-referrer"
+                      className="w-12 h-12 rounded-full border-2 border-orange-500/40 object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-orange-400 font-bold font-mono text-sm">
+                      {(user.displayName || user.email || 'A').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-sm font-extrabold text-white leading-tight">
+                        {user.displayName || 'Athlete'}
+                      </h4>
+                      <div className="flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase font-mono">
+                        <ShieldCheck className="w-2.5 h-2.5" />
+                        <span>Synced</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-0.5">{user.email}</p>
+                    <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                      UID: {user.uid.slice(0, 12)}...
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  id="auth-logout-btn"
+                  onClick={logOut}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-bold text-xs rounded-xl border border-zinc-700/60 transition active:scale-95 duration-100 shrink-0"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Disconnect Account</span>
+                </button>
+              </div>
+            ) : (
+              /* Logged Out Options */
+              <div className="space-y-3">
+                <p className="text-xs text-zinc-400">
+                  Connect your profile to automatically save your custom routines, workout histories, trophies, coins, and leveling progress to secure cloud databases.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Google Login Button */}
+                  <button
+                    id="auth-google-login-btn"
+                    onClick={signInWithGoogle}
+                    className="flex items-center justify-center gap-2.5 px-4 py-3 bg-white hover:bg-zinc-100 text-zinc-950 text-xs font-black rounded-xl transition duration-150 shadow-md select-none active:scale-[0.98]"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#EA4335"
+                        d="M5.26620003,9.76453951 C6.19875004,6.93810444 8.85468754,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4242188,6.50113636 L19.905,3.02036364 C17.79975,1.15011364 15.0272727,0 12,0 C7.33008753,0 3.30210002,4.02951475 1.58153751,9.30136364 L5.26620003,9.76453951 Z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M16.0407563,17.1358636 C14.9030625,17.9001818 13.5132188,18.3511364 12,18.3511364 C8.85468754,18.3511364 6.19875004,16.3221229 5.26620003,13.4956878 L1.58153751,13.9588636 C3.30210002,19.2307125 7.33008753,23.2602273 12,23.2602273 C14.9359063,23.2602273 17.6536313,22.18125 19.6734563,20.3563636 L16.0407563,17.1358636 Z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M24,12.2727273 C24,11.4545455 23.9181818,10.6363636 23.7727273,9.81818182 L12,9.81818182 L12,14.4136364 L18.7554563,14.4136364 C18.4645438,15.9681818 17.5187125,17.3181818 16.0407563,18.3090909 L19.6734563,21.5298636 C22.1969625,19.2065364 24,15.7533636 24,12.2727273 Z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.26620003,9.76453951 C5.01170627,10.5369666 4.87012502,11.3615965 4.87012502,12.2202273 C4.87012502,13.078858 5.01170627,13.9034879 5.26620003,14.675915 L1.58153751,14.2127391 C0.57395626,12.2229545 0,9.98613636 0,7.60113636 C0,5.21613636 0.57395626,2.97931818 1.58153751,0.989545455 L5.26620003,1.45272132 Z"
+                      />
+                    </svg>
+                    <span>Connect Google</span>
+                  </button>
+
+                  {/* Facebook Login Button */}
+                  <button
+                    id="auth-facebook-login-btn"
+                    onClick={signInWithFacebook}
+                    className="flex items-center justify-center gap-2.5 px-4 py-3 bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-black rounded-xl transition duration-150 shadow-md select-none active:scale-[0.98]"
+                  >
+                    <svg className="w-4.5 h-4.5 shrink-0 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                    <span>Connect Facebook</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="p-5 sm:p-6 bg-zinc-900/70 border border-zinc-800 rounded-3xl space-y-4">
+            <h3 className="text-sm font-bold text-white font-display uppercase tracking-wider font-mono">
+              Preferences & Data Sync
+            </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Auto Rest Timer Preference */}
@@ -490,6 +633,7 @@ export const PRsAndStatsView: React.FC<PRsAndStatsViewProps> = ({
             </button>
           </div>
         </div>
+      </div>
       )}
 
       {/* Manual PR Entry Modal */}

@@ -17,6 +17,7 @@ export interface Exercise {
   supportsAddedWeight: boolean;
   supportsAssistance: boolean;
   isCustom?: boolean;
+  photoUrl?: string;
 }
 
 export interface WorkoutSet {
@@ -144,6 +145,93 @@ export interface UserPreferences {
   vibrateEnabled: boolean;
   athleteName: string;
   autoRestTimerEnabled?: boolean;
+  username?: string;
+  avatarUrl?: string;
+  bio?: string;
+  bestRank?: string;
+  bestRankTier?: 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'red_diamond' | 'cosmic_obsidian';
+}
+
+export interface FriendProfile {
+  id: string;
+  userId?: string;
+  username: string;
+  athleteName: string;
+  avatarUrl?: string;
+  level: number;
+  totalWorkouts: number;
+  streak: number;
+  favoriteExercise?: string;
+  bestPr?: string;
+  bio?: string;
+  bestRank?: string;
+  bestRankTier?: 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'red_diamond' | 'cosmic_obsidian';
+  lastActive?: string;
+  status?: 'online' | 'offline' | 'training';
+  isLocalDemo?: boolean;
+}
+
+export interface FriendRequestItem {
+  id: string;
+  fromUserId: string;
+  fromUsername: string;
+  fromAthleteName: string;
+  fromAvatarUrl?: string;
+  toUserId: string;
+  toUsername: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface RepRankTestResult {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  category: ExerciseCategory;
+  type: MeasurementType;
+  repsOrSeconds: number;
+  addedWeightKg?: number;
+  rankTitle: string;
+  tier: 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'red_diamond' | 'cosmic_obsidian';
+  percentile: number;
+  testedAt: number;
+  notes?: string;
+}
+
+export interface PlannedExerciseTarget {
+  exerciseId: string;
+  exerciseName?: string;
+  targetSets: number;
+  targetRepsOrSecs: number;
+  targetRestSeconds?: number;
+  notes?: string;
+}
+
+export interface PlannedWorkout {
+  id: string;
+  date: string; // ISO YYYY-MM-DD
+  routineId?: string;
+  routineTitle: string;
+  targetFocusNotes?: string;
+  estimatedMinutes?: number;
+  plannedExercises?: PlannedExerciseTarget[];
+  isCompleted?: boolean;
+  completedSessionId?: string;
+  createdAt: number;
+}
+
+export interface WorkoutMemory {
+  id: string;
+  date: string; // ISO YYYY-MM-DD
+  sessionId?: string;
+  title: string;
+  caption: string;
+  photoUrl?: string;
+  moodRating?: 1 | 2 | 3 | 4 | 5;
+  memoryBadge?: string; // e.g. "⚡ Benchmark Broken", "🏆 Rank Up Day", "🌅 Outdoor Park Session"
+  locationName?: string;
+  createdAt: number;
 }
 
 export interface AppData {
@@ -157,4 +245,8 @@ export interface AppData {
   coins?: number;
   unlockedThemes?: string[];
   activeTheme?: string;
+  localFriends?: FriendProfile[];
+  repRankHistory?: RepRankTestResult[];
+  plannedWorkouts?: PlannedWorkout[];
+  workoutMemories?: WorkoutMemory[];
 }
